@@ -1,0 +1,30 @@
+name: Worker route diagnostic
+
+on:
+  push:
+    paths:
+      - .github/workflows/diagnostic.yml
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe public Worker URLs
+        shell: bash
+        run: |
+          for url in \
+            'https://check.qiiqii.cc/' \
+            'https://edt-qiiqii.matkehiatanley6178.workers.dev/?github-probe=1' \
+            'https://vless.qiiqii.cc/robots.txt?github-probe=1'; do
+            echo "URL: $url"
+            host="${url#https://}"
+            host="${host%%/*}"
+            getent ahostsv4 "$host" | head -2 || true
+            curl -sS -L --max-time 25 -D /tmp/probe.headers -o /tmp/probe.body \
+              -w 'HTTP %{http_code}; remote_ip %{remote_ip}; total_time %{time_total}s\n' "$url" || true
+            head -12 /tmp/probe.headers || true
+            head -c 200 /tmp/probe.body || true
+            echo
+          done
+
